@@ -5,21 +5,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <netdb.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <string.h>
 
 
-int socketProceso, puerto;
+int socketProceso, puerto, datosRecibidos;
 int tamanoStruct = sizeof(struct sockaddr);
 char recibido[256], porEnviar[256];
 	
 struct sockaddr_in datosServidor, datosCliente;
 
 
-/*  Definición de la función servidor. Recibe 0 argumentos. Es llamada por el main
+/*  Definición de la función servidor. Recibe 0 argumentos. Es llamada por el main.
  *  cuando el usuario digita "1".
  */
 void servidor()
 {
-	//int clienteConectado;
 	printf("Iniciado proceso para crear servidor...\n");
 	printf("Digite el puerto que desea abrir para el servidor: ");
 	scanf("%d", &puerto);														//Obtención del puerto.
@@ -71,17 +73,23 @@ void servidor()
 		contador++;		
 	}
 	
-	contador = 0;
+	//Inicio del ciclo de conexión
+	while(1)
+	{
+		
+	}
+	
+	
 }
 
 
-/*  Definición de la función cliente. Recibe 0 argumentos. Es llamada por el main
+/*  Definición de la función cliente. Recibe 0 argumentos. Es llamada por el main.
  *  cuando el usuario digita "2". 
  */
 void cliente()
 {
 	char ipServidor[15];
-	printf("Iniciado el proceso de creación del cliente...");
+	printf("Iniciado el proceso de creación del cliente...\n");
 	
 	printf("Digite el IP del servidor al que se desea conectar: ");
 	scanf("%s", &ipServidor);
@@ -106,7 +114,40 @@ void cliente()
 		exit(21);
 	}
 	
+	pid_t hijo = fork();
 	
+	if(hijo>=0)
+	{
+		if(hijo==0)
+		{
+			while(1)
+			{
+				datosRecibidos = recv(socketProceso, recibido, 256, 0);		//Asginación a datosRecibidos por medio de la función recv().
+				recibido[datosRecibidos] = '\0';							//Recibe como parámetros socket, un arreglo al cual enviar los
+				printf("Mensaje recibido: %s", recibido);					//datos, el valor máximo de bytes a recibir y 0 por bandera.
+			}																
+		}
+		else
+		{
+			while(1)
+			{
+				gets(porEnviar);
+				printf("Mensaje enviado: %s", porEnviar);
+				if( strcmp(porEnviar, "adios") == 0)
+				{
+					close(socketProceso);
+					break;
+				}
+				
+				send(socketProceso, porEnviar, sizeof(porEnviar), 0);
+			}
+		}
+	}
+	else
+	{
+		printf("Fallo al crear hilo");
+		exit(22);
+	}	
 }
 
 
