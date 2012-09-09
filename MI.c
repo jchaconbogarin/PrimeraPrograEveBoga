@@ -16,6 +16,10 @@ char recibido[256], porEnviar[256];
 	
 struct sockaddr_in datosServidor, datosCliente;
 
+struct datosCiclo
+{
+	
+};
 
 /*  Definición de la función servidor. Recibe 0 argumentos. Es llamada por el main.
  *  cuando el usuario digita "1".
@@ -70,18 +74,43 @@ void servidor()
 			printf("Error aceptando cliente");
 			exit(13);																	
 		}
-		contador++;		
-	}
-	
-	//Inicio del ciclo de conexión
-	while(1)
-	{
+		contador++;
 		
 	}
 	
+	pid_t hijo = fork();
 	
+	int *cliente1 = &conexiones[0];
+	int *cliente2 = &conexiones[1];
+	
+	
+	if(hijo>=0)
+	{
+		if(hijo==0)
+		{
+			cicloServidor(cliente1, cliente2);
+		}
+		else
+		{
+			cicloServidor(cliente2, cliente1);
+		}
+	}
+	else
+	{
+		printf("Fallo al crear hilo");
+		exit(13);
+	}	
 }
 
+void cicloServidor(int *recibe, int *envia)
+{
+	while(1)
+	{
+		datosRecibidos = recv(*recibe, recibido, 256, 0);
+		send(*envia, recibido, sizeof(recibido), 0);
+		//printf("%d", *recibe);
+	}
+}
 
 /*  Definición de la función cliente. Recibe 0 argumentos. Es llamada por el main.
  *  cuando el usuario digita "2". 
@@ -91,9 +120,10 @@ void cliente()
 	char ipServidor[15];
 	printf("Iniciado el proceso de creación del cliente...\n");
 	
-	printf("Digite el IP del servidor al que se desea conectar: ");
+	printf("Digite el IP del servidor al que se desea conectar: ");	
 	scanf("%s", &ipServidor);
-	printf("Digite el puerto del servidor al que se desea conectar: ");
+	
+	printf("Digite el puerto del servidor al que se desea conectar: ");	
 	scanf("%d", &puerto);
 	
 	struct hostent *serv;
@@ -115,7 +145,7 @@ void cliente()
 	}
 	
 	pid_t hijo = fork();
-	
+
 	if(hijo>=0)
 	{
 		if(hijo==0)
@@ -138,7 +168,6 @@ void cliente()
 					close(socketProceso);
 					break;
 				}
-				
 				send(socketProceso, porEnviar, sizeof(porEnviar), 0);
 			}
 		}
