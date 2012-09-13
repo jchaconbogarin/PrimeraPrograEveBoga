@@ -1,4 +1,10 @@
-//Servidor
+/*
+Instituto Tecnológico de Costa Rica
+Primera Tarea Programada - Lenguajes de Programación
+Jose Daniel Chacón Bogarín
+Evelyn Madriz Mata
+13 de setiembre de 2012
+*/
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -8,201 +14,171 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
+#define RECIBIDO 31
+#define ENVIADO 32
 
 
-int socketProceso, puerto, datosRecibidos;
+int socketServ, socketCli, puerto, puertoCliente, datosRecibidos;
 int tamanoStruct = sizeof(struct sockaddr);
 char recibido[256], porEnviar[256];
-	
-struct sockaddr_in datosServidor, datosCliente;
+char ipServidor[15];
+int contadorEspecial = 0;
 
-struct datosCiclo
-{
-	
-};
+struct sockaddr_in datosServidor, datosCliente, datosServidorCliente;
 
-/*  Definición de la función servidor. Recibe 0 argumentos. Es llamada por el main.
- *  cuando el usuario digita "1".
- */
-void servidor()
+int creaCliente()
 {
-	printf("Iniciado proceso para crear servidor...\n");
-	printf("Digite el puerto que desea abrir para el servidor: ");
-	scanf("%d", &puerto);														//Obtención del puerto.
-	
-	
-	//Asignación de valores de la estructura de datos del servidor.
-	datosServidor.sin_family = AF_INET;					//Protocolo TCP							
-	datosServidor.sin_port = htons(puerto);				//Puerto. Se convierte para compatibilidad de bytes con la red.
-	datosServidor.sin_addr.s_addr = INADDR_ANY; 		//Obtiene el IP por sí mismo.
-	
-	struct sockaddr *ptrDatos = &datosServidor;									//Puntero a la estructura (necesario para bind())
-	
-	int asociacion = bind(socketProceso, ptrDatos, tamanoStruct);				//Asociación del socket.
-	if(asociacion == -1)
-	{
-		printf("Error asociando el socket");
-		exit(11);																//Valor de retorno de fallo de la asociación de socket.
-	}
-	
-	int cantidadClientes = listen(socketProceso, 2);							//Apertura de servidor a clientes y cantidad de los mismos.
-	if(cantidadClientes == -1)
-	{
-		printf("Error asignando en la función listen()");
-		exit(12);																//Fallo al abrir y asignar cantidad de clientes.
-	}
-	
-	printf("Servidor creado correctamente.\n");
-	printf("Esperando conexión en el puerto: %d...\n", puerto);
-	
-	int tamanoStruct2 = sizeof(struct sockaddr_in);								//Definición del tamaño de la estructura. Necesario para la función accept()
-	int contador = 0;															//Se define el contador de las conexiones.
-	
-	int conexiones[2];															//Se define el arreglo que tiene los id de las conexiones.
-	
-	while(contador!=2)															//Inicio del ciclo que acepta las conexiones de clientes
-	{
-		int conexion = accept(socketProceso, (struct sockaddr *)&datosCliente	//Función accept que acepta una conexión.
-							  , &tamanoStruct2);		
-		
-		printf("Conexión recibida con identifcador: %d\n",conexion);
-		
-		conexiones[contador] = conexion;										//Se inserta el id de la conexión al arreglo de clientes.
-		
-		if(conexion==-1)														//Error de conexión	
-		{
-			printf("Error aceptando cliente");
-			exit(13);																	
-		}
-		contador++;
-		
-	}
-	
-	pid_t hijo = fork();
-	
-	int *cliente1 = &conexiones[0];
-	int *cliente2 = &conexiones[1];
-	
-	
-	if(hijo>=0)
-	{
-		if(hijo==0)
-		{
-			cicloServidor(cliente1, cliente2);
-		}
-		else
-		{
-			cicloServidor(cliente2, cliente1);
-		}
-	}
-	else
-	{
-		printf("Fallo al crear hilo");
-		exit(13);
-	}	
-}
-
-void cicloServidor(int *recibe, int *envia)
-{
-	while(1)
-	{
-		datosRecibidos = recv(*recibe, recibido, 256, 0);
-		send(*envia, recibido, sizeof(recibido), 0);
-		//printf("%d", *recibe);
-	}
-}
-
-/*  Definición de la función cliente. Recibe 0 argumentos. Es llamada por el main.
- *  cuando el usuario digita "2". 
- */
-void cliente()
-{
-	char ipServidor[15];
-	printf("Iniciado el proceso de creación del cliente...\n");
-	
-	printf("Digite el IP del servidor al que se desea conectar: ");	
-	scanf("%s", &ipServidor);
-	
-	printf("Digite el puerto del servidor al que se desea conectar: ");	
-	scanf("%d", &puerto);
-	
 	struct hostent *serv;
 	serv = gethostbyname(&ipServidor);									//Obtenemos los datos del servidor por medio del IP ingresado por el usuario.
 
 	//Asignación de valores de la estructura de datos del servidor.
-	datosServidor.sin_family = AF_INET;									//Protocolo TCP							
-	datosServidor.sin_port = htons(puerto);								//Puerto. Se convierte para compatibilidad de bytes con la red.
-	datosServidor.sin_addr = *((struct in_addr *)serv->h_addr); 		//Se obtiene la estructura por medio de h_addr en serv
+	datosServidorCliente.sin_family = AF_INET;							//Protocolo TCP							
+	datosServidorCliente.sin_port = htons(puertoCliente);				//Puerto. Se convierte para compatibilidad de bytes con la red.
+	datosServidorCliente.sin_addr = *((struct in_addr *)serv->h_addr); 	//Se obtiene la estructura por medio de h_addr en serv
+		
+
+	socketCli = socket(AF_INET, SOCK_STREAM, 0);
 	
-	struct sockaddr *ptrDatos = &datosServidor;							//Puntero a la estructura de datos del servidor
-	
-	int conectar = connect(socketProceso, ptrDatos, tamanoStruct);		//Intento de conexión con el servidor.
-	
-	if(conectar == -1)
+	if(socketCli == -1)
 	{
-		printf("Error conectando con el servidor");
+		printf("Error creando el socket del cliente");
 		exit(21);
 	}
 	
-	pid_t hijo = fork();
+	struct sockaddr *ptrDatos = &datosServidorCliente;					//Puntero a la estructura de datos del servidor
+		
+	int conectar = connect(socketCli, ptrDatos, tamanoStruct);			//Intento de conexión con el servidor.
 
-	if(hijo>=0)
+	if(conectar == -1)
 	{
-		if(hijo==0)
+		printf("¡Intento de conexión fallido!");
+		exit(22);
+	}	
+	else
+	{
+		system("clear");
+		printf("¡Conexión exitosa! Comience a hablar.\n");
+		while(1)
 		{
-			while(1)
+			gets(porEnviar);
+			if(strcmp(porEnviar, "Adios") == 0)
 			{
-				datosRecibidos = recv(socketProceso, recibido, 256, 0);		//Asginación a datosRecibidos por medio de la función recv().
-				recibido[datosRecibidos] = '\0';							//Recibe como parámetros socket, un arreglo al cual enviar los
-				printf("Mensaje recibido: %s", recibido);					//datos, el valor máximo de bytes a recibir y 0 por bandera.
-			}																
+				send(socketCli, porEnviar, sizeof(porEnviar), 0);
+				close(socketCli);
+				exit(0);
+			}
+			printf("\n%c[%dmMensaje enviado: %s", 0x1B, ENVIADO, porEnviar);
+			send(socketCli, porEnviar, sizeof(porEnviar), 0);
+		}
+	}
+}
+
+void creaServidor()
+{	
+	socketServ = socket(AF_INET, SOCK_STREAM, 0);
+	if(socketServ == -1)
+	{
+		printf("¡Error creando el socket del servidor!");
+		exit(11);
+	}
+	
+	//Asignación de valores de la estructura de datos del servidor.
+	datosServidor.sin_family = AF_INET;									//Protocolo TCP							
+	datosServidor.sin_port = htons(puerto);								//Puerto. Se convierte para compatibilidad de bytes con la red.
+	datosServidor.sin_addr.s_addr = INADDR_ANY; 						//Obtiene el IP por sí mismo.
+	
+	struct sockaddr *ptrDatos = &datosServidor;
+	
+	int asociacion = bind(socketServ, ptrDatos, tamanoStruct);			//Asociación del socket.
+	if(asociacion == -1)
+	{
+		printf("¡Error asociando el socket del servidor!");
+		exit(12);														//Valor de retorno de fallo de la asociación de socket.
+	}
+
+	int cantidadClientes = listen(socketServ, 1);						//Apertura de servidor a clientes y cantidad de los mismos.
+	if(cantidadClientes == -1)
+	{
+		printf("¡Error habilitando las peticiones de conexión!");
+		exit(13);														//Fallo al abrir y asignar cantidad de clientes.
+	}
+	fflush(stdout);
+	
+	pid_t procesoHijo = fork();
+	
+	if (procesoHijo >= 0)
+	{
+		if(procesoHijo==0)
+		{
+			int confirmacion = 0;
+			printf("Esperando confirmación para crear el cliente...digite 1.\n");
+			scanf("%d", &confirmacion);
+			if(confirmacion == 1)
+			{
+				creaCliente();
+			}
+			else
+			{
+				printf("Confirmación incorrecta. Se cerrará el programa.");
+				exit(1);
+			}
 		}
 		else
 		{
+			printf("Servidor creado correctamente.\n");
+			printf("Servidor esperando conexión en el puerto: %d...\n", puerto);
+			
+			int tamanoStruct2 = sizeof(struct sockaddr_in);						//Definición del tamaño de la estructura. Necesario para la función accept()
+			int conexion = accept(socketServ, (struct sockaddr *)&datosCliente	//Función accept que acepta una conexión.
+						  , &tamanoStruct2);
+			if (conexion == -1)
+			{
+				printf("Conexión fallida");
+				exit(14);
+			}				  
+			system("clear");
+			printf("¡Servidor recibió conexión!\n");
+			
+			int contadorEspecial = 0;
 			while(1)
 			{
-				gets(porEnviar);
-				printf("Mensaje enviado: %s", porEnviar);
-				if( strcmp(porEnviar, "adios") == 0)
+				datosRecibidos = recv(conexion, recibido, 256, 0);
+				recibido[datosRecibidos] = '\0';
+				if(strcmp(recibido, "Adios") == 0)
 				{
-					close(socketProceso);
-					break;
+					exit(0);
 				}
-				send(socketProceso, porEnviar, sizeof(porEnviar), 0);
+				else
+				{
+					printf("\n%c[%dmMensaje recibido: %s", 0x1B, RECIBIDO, recibido);
+					fflush(stdout);
+				}
 			}
 		}
 	}
 	else
 	{
-		printf("Fallo al crear hilo");
-		exit(22);
-	}	
+		printf("Error en el fork()");
+		exit(15);
+	}
 }
 
-
-//Definición de la función main. Recibe 0 argumentos. Funciona para la creación de servidor y cliente.
 int main()
 {
-	int respuesta;												//Variable de servidor o Cliente.
-	printf("1 para servidor o 2 para cliente");
-	scanf("%d", &respuesta);									//Lectura del teclado.
+	printf("Bienvenido al programa de Mensajería Instantánea.\nA continuación se le pedirán algunos datos necesarios para iniciar el programa.\n");
 	
-	socketProceso = socket(AF_INET, SOCK_STREAM, 0);
-	if(socketProceso == -1)
-	{
-		printf("Error creando el socket del cliente");
-		exit(1);
-	}
+	printf("Datos para el servidor: \n");
+	printf("Puerto que se abrirá: ");
+	scanf("%d", &puerto);
 	
-	if(respuesta == 1)											//Comparaciones
-		servidor();
-	else if(respuesta == 2)
-		cliente();
-	else
-	{
-		printf("¡Input incorrecto; programa terminado!");		//Input incorrecto.
-		exit(2);												//Valor retorno 1 de input incorrecto.
-	}
+	printf("Datos del cliente: \n");
+	printf("IP del servidor al que se conectará: ");	
+	scanf("%s", &ipServidor);
+
+	printf("Puerto del servidor al que se conectará: ");	
+	scanf("%d", &puertoCliente);
+	
+	creaServidor();
 	
 	return 0;
 }
